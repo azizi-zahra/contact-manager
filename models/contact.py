@@ -5,6 +5,7 @@ import re
 
 if TYPE_CHECKING:
     from models.user import User
+    from models.label import Label, ContactLabel
 
 class Contact(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -15,6 +16,10 @@ class Contact(SQLModel, table=True):
     city: Annotated[str, StringConstraints(max_length=50)]
     user_id: int = Field(foreign_key="user.id")
     user: "User" = Relationship(back_populates="contacts")
+    labels: list["Label"] = Relationship(
+    back_populates="contacts",
+    link_model=ContactLabel
+)
     
     @field_validator('email')
     @classmethod
