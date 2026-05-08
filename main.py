@@ -1,9 +1,11 @@
+import time
 from contextlib import asynccontextmanager
+from fastapi import Request
 from fastapi import FastAPI
 from fastapi_swagger import patch_fastapi
+from fastapi.middleware.cors import CORSMiddleware
 from database import create_db
 from routers import contact_router, auth_router, label_router
-from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,6 +34,14 @@ app.middleware(
     allow_methods=["*"],
     allow_header=["*"],
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = round(time.time() - start_time, 3)
+    print(f"{request.method} {request.url.path} - {response.status_code} - {duration}s")
+    return response
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(contact_router, prefix="/api", tags=["Contacts"])
