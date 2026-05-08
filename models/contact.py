@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional, Annotated, TYPE_CHECKING
+from typing import Optional, Annotated, TYPE_CHECKING, List
 from pydantic import StringConstraints, field_validator
-from models.label import ContactLabel
+from models.label import ContactLabel, LabelResponse
 import re
 
 if TYPE_CHECKING:
@@ -18,9 +18,9 @@ class Contact(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id")
     user: "User" = Relationship(back_populates="contacts")
     labels: list["Label"] = Relationship(
-    back_populates="contacts",
-    link_model=ContactLabel
-)
+        back_populates="contacts",
+        link_model=ContactLabel
+    )
     
     @field_validator('email')
     @classmethod
@@ -36,6 +36,7 @@ class ContactCreate(SQLModel):
     phone: Annotated[str, StringConstraints(max_length=15, pattern=r'^09\d{9}$')]
     email: Annotated[str, StringConstraints(max_length=100)]
     city: Annotated[str, StringConstraints(max_length=50)]
+    label_ids: Optional[List[int]] = None  
     
     @field_validator('email')
     @classmethod
@@ -51,6 +52,7 @@ class ContactUpdate(SQLModel):
     phone: Optional[Annotated[str, StringConstraints(max_length=15, pattern=r'^09\d{9}$')]] = None
     email: Optional[Annotated[str, StringConstraints(max_length=100)]] = None
     city: Optional[Annotated[str, StringConstraints(max_length=50)]] = None
+    label_ids: Optional[List[int]] = None  
     
     @field_validator('email')
     @classmethod
@@ -68,3 +70,4 @@ class ContactResponse(SQLModel):
     phone: Annotated[str, StringConstraints(max_length=15, pattern=r'^09\d{9}$')]
     email: Annotated[str, StringConstraints(max_length=100)]
     city: Annotated[str, StringConstraints(max_length=50)]
+    labels: List[LabelResponse] = []

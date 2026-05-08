@@ -22,7 +22,6 @@ def get_contacts(
         
     if label_id:
         query = query.join(ContactLabel).where(ContactLabel.label_id == label_id)
-         
         
     if search:
         query = query.where(
@@ -63,17 +62,17 @@ def get_contact(
 
 @router.post("/contacts", status_code=status.HTTP_201_CREATED)
 def post_contact(
-    data: ContactCreate, 
-    label_ids: Optional[List[int]] = None,
+    data: ContactCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    new_contact = Contact(**data.model_dump(), user_id=current_user.id)
+    label_data = data.model_dump(exclude={"label_ids"})
+    new_contact = Contact(**label_data, user_id=current_user.id)
     
-    if label_ids:
+    if data.label_ids:
         labels = session.exec(
             select(Label).where(
-                Label.id.in_(label_ids),
+                Label.id.in_(data.label_ids),
                 Label.user_id == current_user.id
             )
         ).all()
@@ -87,8 +86,7 @@ def post_contact(
 @router.put("/contacts/{contact_id}", status_code=status.HTTP_200_OK)
 def update_contact(
     contact_id: int, 
-    data: ContactUpdate, 
-    label_ids: Optional[List[int]] = None,
+    data: ContactUpdate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -105,13 +103,14 @@ def update_contact(
             detail=f"No contact with id {contact_id} was found"
         )
         
-    for key, value in data.model_dump(exclude_unset=True).items():
-        setattr(contact, key, value)    
+    update_data = data.model_dump(exclude_unset=True, exclude={"label_ids"})
+    for key, value in update_data.items():
+        setattr(contact, key, value)
         
-    if label_ids is not None:
+    if data.label_ids is not None:
         labels = session.exec(
             select(Label).where(
-                Label.id.in_(label_ids),
+                Label.id.in_(data.label_ids),
                 Label.user_id == current_user.id
             )
         ).all()
