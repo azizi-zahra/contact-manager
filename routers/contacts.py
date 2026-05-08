@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 from database import get_session
-from typing import Optional
-from models import Contact, ContactCreate, ContactUpdate, ContactResponse, User
+from typing import Optional, List
+from models import Contact, ContactCreate, ContactUpdate, ContactResponse, User, Label, ContactLabel
 from security import get_current_user
 
 router = APIRouter()
@@ -11,6 +11,7 @@ router = APIRouter()
 def get_contacts(
     city: Optional[str] = None,
     search: Optional[str] = None,
+    label_id: Optional[int] = None,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -18,6 +19,10 @@ def get_contacts(
     
     if city:
         query = query.where(Contact.city == city)
+        
+    if label_id:
+        query = query.join(ContactLabel).where(ContactLabel.label_id == label_id)
+         
         
     if search:
         query = query.where(
@@ -59,10 +64,21 @@ def get_contact(
 @router.post("/contacts", status_code=status.HTTP_201_CREATED)
 def post_contact(
     data: ContactCreate, 
+    label_ids: Optional[List[int]] = None,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
     new_contact = Contact(**data.model_dump(), user_id=current_user.id)
+    
+    if label_ids:
+        labels = session.exec(
+            select(Label).where(
+                Label.id.in_(label_ids),
+                Label.user_id == current_user.id
+            )
+        ).all()
+        new_contact.labels = labels
+    
     session.add(new_contact)
     session.commit()
     session.refresh(new_contact)
@@ -72,6 +88,7 @@ def post_contact(
 def update_contact(
     contact_id: int, 
     data: ContactUpdate, 
+    label_ids: Optional[List[int]] = None,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
@@ -90,6 +107,15 @@ def update_contact(
         
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(contact, key, value)    
+        
+    if label_ids is not None:
+        labels = session.exec(
+            select(Label).where(
+                Label.id.in_(label_ids),
+                Label.user_id == current_user.id
+            )
+        ).all()
+        contact.labels = labels
     
     session.add(contact)
     session.commit()
@@ -113,7 +139,11 @@ def delete_contact(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail=f"No contact with id {contact_id} was found"
-        )    
+        ) 
+        
+    for label in contact.labels:
+        contact.labels.remove(label)    
+           
     session.delete(contact)
     session.commit()
     return {"message": f"Contact with id {contact_id} was deleted"}
