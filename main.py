@@ -23,7 +23,16 @@ app = FastAPI(title="Contact API",
 
 patch_fastapi(app, docs_url="/docs")
 
-app.middleware(
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    duration = round(time.time() - start_time, 3)
+    print(f"{request.method} {request.url.path} - {response.status_code} - {duration}s")
+    return response
+
+
+app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
@@ -32,16 +41,8 @@ app.middleware(
     ],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_header=["*"],
+    allow_headers=["*"],
 )
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    duration = round(time.time() - start_time, 3)
-    print(f"{request.method} {request.url.path} - {response.status_code} - {duration}s")
-    return response
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(contact_router, prefix="/api", tags=["Contacts"])

@@ -1,11 +1,12 @@
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, Annotated, TYPE_CHECKING
 from pydantic import StringConstraints, field_validator
+from models.label import ContactLabel
 import re
 
 if TYPE_CHECKING:
     from models.user import User
-    from models.label import Label, ContactLabel
+    from models.label import Label
 
 class Contact(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
