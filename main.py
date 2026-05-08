@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi_swagger import patch_fastapi
 from database import create_db
 from routers import contact_router, auth_router, label_router
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -13,12 +14,24 @@ async def lifespan(app: FastAPI):
     print("=== Shutting Down ===")
     
 app = FastAPI(title="Contact API", 
-              version="1.0.0", 
+              version="4.0.0", 
               lifespan=lifespan, 
               docs_url=None, 
               swagger_ui_oauth2_redirect_url=None)
 
 patch_fastapi(app, docs_url="/docs")
+
+app.middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5500"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_header=["*"],
+)
 
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 app.include_router(contact_router, prefix="/api", tags=["Contacts"])
