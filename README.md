@@ -64,10 +64,10 @@ Server-side regex and constraint checks for emails, phone numbers, and formattin
 * Python 3.10+
 * Node.js & npm
 
-###Clone the Repository
+### Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/contact-manager.git
+git clone https://github.com/azizi-zahra/contact-manager.git
 cd contact-manager
 ```
 
