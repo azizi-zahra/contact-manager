@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
+from sqlalchemy.orm import selectinload
 from database import get_session
 from typing import Optional, List
 from models import Contact, ContactCreate, ContactUpdate, ContactResponse, User, Label, ContactLabel
@@ -7,7 +8,7 @@ from security import get_current_user
 
 router = APIRouter()
 
-@router.get("/contacts", response_model=list[ContactResponse], status_code=status.HTTP_200_OK)
+@router.get("/contacts", response_model=List[ContactResponse], status_code=status.HTTP_200_OK)
 def get_contacts(
     city: Optional[str] = None,
     search: Optional[str] = None,
@@ -15,7 +16,7 @@ def get_contacts(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    query = select(Contact).where(Contact.user_id == current_user.id)
+    query = select(Contact).where(Contact.user_id == current_user.id).options(selectinload(Contact.labels))
     
     if city:
         query = query.where(Contact.city == city)
@@ -40,17 +41,16 @@ def get_contacts(
         
     return contacts
 
-@router.get("/contacts/{contact_id}", status_code=status.HTTP_200_OK)
+@router.get("/contacts/{contact_id}", response_model=ContactResponse, status_code=status.HTTP_200_OK)
 def get_contact(
     contact_id: int, 
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
     contact = session.exec(
-        select(Contact).where(
-            Contact.id == contact_id,
-            Contact.user_id == current_user.id
-        )
+        select(Contact)
+        .where(Contact.id == contact_id, Contact.user_id == current_user.id)
+        .options(selectinload(Contact.labels))
     ).first()
     
     if not contact:
@@ -60,14 +60,14 @@ def get_contact(
         )    
     return contact
 
-@router.post("/contacts", status_code=status.HTTP_201_CREATED)
+@router.post("/contacts", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
 def post_contact(
     data: ContactCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    label_data = data.model_dump(exclude={"label_ids"})
-    new_contact = Contact(**label_data, user_id=current_user.id)
+    contact_data = data.model_dump(exclude={"label_ids"})
+    new_contact = Contact(**contact_data, user_id=current_user.id)
     
     if data.label_ids:
         labels = session.exec(
@@ -83,7 +83,7 @@ def post_contact(
     session.refresh(new_contact)
     return new_contact 
 
-@router.put("/contacts/{contact_id}", status_code=status.HTTP_200_OK)
+@router.put("/contacts/{contact_id}", response_model=ContactResponse, status_code=status.HTTP_200_OK)
 def update_contact(
     contact_id: int, 
     data: ContactUpdate,
@@ -91,10 +91,9 @@ def update_contact(
     current_user: User = Depends(get_current_user),
 ):
     contact = session.exec(
-        select(Contact).where(
-            Contact.id == contact_id,
-            Contact.user_id == current_user.id
-        )
+        select(Contact)
+        .where(Contact.id == contact_id, Contact.user_id == current_user.id)
+        .options(selectinload(Contact.labels))
     ).first()
     
     if not contact:
@@ -140,8 +139,7 @@ def delete_contact(
             detail=f"No contact with id {contact_id} was found"
         ) 
         
-    for label in contact.labels:
-        contact.labels.remove(label)    
+    contact.labels.clear()   
            
     session.delete(contact)
     session.commit()
